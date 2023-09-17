@@ -1,4 +1,4 @@
-<h1 align="center">Make Notion Charts With Database Data</h1>
+<h1 align="center">Make Notion Charts With Notion Database</h1>
 
 This is a basic custom code solution for integrating/viewing charts with Notion Database.
 While going over this I have taken a lot of reference from the following article https://www.twilio.com/blog/make-notion-charts-with-database-data.
