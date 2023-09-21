@@ -44,33 +44,32 @@ async function getChart(databaseId, chartType) {
 
     const data = await queryDatabase(databaseId)
         .then(async results => {
-            const dataPts = [];
-            const labels = [];
-
+            // Maps tag and amount spend
+            const tags = {};
             for (let i = 0; i < results.length; i++) {
                 const pageId = results[i].id;
-                const nameId = results[i].properties.Name.id;
-                const scoreId = results[i].properties.Score.id;
+                const tagId = results[i].properties.Tags.id;
+                const amountId = results[i].properties.Amount.id;
 
                 try {
-                    const nameVal = await notion.pages.properties.retrieve({ page_id: pageId, property_id: nameId });
-                    const scoreVal = await notion.pages.properties.retrieve({ page_id: pageId, property_id: scoreId });
-                    labels.push(nameVal.results[0].title.text.content);
-                    dataPts.push(scoreVal.number);
-
+                    const tagVal = await notion.pages.properties.retrieve({ page_id: pageId, property_id: tagId });
+                    const amountVal = await notion.pages.properties.retrieve({ page_id: pageId, property_id: amountId });
+                    const tag = tagVal.select.name;
+                    const amount = amountVal.number;
+                    tags[tag] = tag in tags ? tags[tag] + amount : amount;
                 } catch (error) {
                     console.log(error.body);
                 }
             }
-            return { "Labels": labels, "Data Points": dataPts };
+            return { labels: Object.keys(tags), dataPts: Object.values(tags) };
         });
 
     const myChart = new QuickChart();
     myChart.setConfig({
         type: chartType,
         data: {
-            labels: data["Labels"],
-            datasets: [{ label: 'Scores', data: data["Data Points"] }]
+            labels: data.labels,
+            datasets: [{ label: 'Amount', data: data.dataPts }]
         },
     })
         .setWidth(800)
@@ -118,6 +117,7 @@ async function replaceCharts(pageId, imgUrls) {
     // Reconstruct the children array + gather all ID's
     const children = new Array(results.length).fill(0);
 
+    // FIXME:: Make it more generic 
     for (let i = 0; i < results.length; i++) {
         allBlockIds.push(results[i].id)
 
@@ -176,12 +176,13 @@ async function refreshPage(databaseId, pageId, clientId, chartType) {
 }
 
 // replaceCharts(pageId, ['https://i.imgur.com/XwU6DJt.png']);
+await refreshPage(databaseId, pageId, clientId, 'pie');
 
-export const handler = async (event) => {
-    await refreshPage(databaseId, pageId, clientId, 'pie');
-    const response = {
-        statusCode: 200,
-        body: JSON.stringify('Success!'),
-    };
-    return response;
-};
+// export const handler = async (event) => {
+//     await refreshPage(databaseId, pageId, clientId, 'pie');
+//     const response = {
+//         statusCode: 200,
+//         body: JSON.stringify('Success!'),
+//     };
+//     return response;
+// };
