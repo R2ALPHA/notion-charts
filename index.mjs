@@ -40,28 +40,32 @@ async function getChildBlocks(pageId) {
 
 // This function will access the data from the given database, generate a chart with QuickChart,
 // and return the QuickChart URL containing the chart image 
-async function getChart(databaseId, chartType) {
+async function getChart(databaseId, chartType, plotType) {
 
     const data = await queryDatabase(databaseId)
         .then(async results => {
             // Maps tag and amount spend
             const tags = {};
+            let total = 0;
             for (let i = 0; i < results.length; i++) {
                 const pageId = results[i].id;
                 const tagId = results[i].properties.Tags.id;
                 const amountId = results[i].properties.Amount.id;
-
                 try {
                     const tagVal = await notion.pages.properties.retrieve({ page_id: pageId, property_id: tagId });
                     const amountVal = await notion.pages.properties.retrieve({ page_id: pageId, property_id: amountId });
                     const tag = tagVal.select.name;
                     const amount = amountVal.number;
+                    total += amount;
                     tags[tag] = tag in tags ? tags[tag] + amount : amount;
                 } catch (error) {
                     console.log(error.body);
                 }
             }
-            return { labels: Object.keys(tags), dataPts: Object.values(tags) };
+
+            let dataPts = Object.values(tags);
+            dataPts = plotType === 'percentage' ? dataPts.map(pts => (pts / total * 100).toFixed(2)) : dataPts;
+            return { labels: Object.keys(tags), dataPts: dataPts };
         });
 
     const myChart = new QuickChart();
@@ -163,10 +167,10 @@ async function replaceCharts(pageId, imgUrls) {
 }
 
 // The main driver of the program
-async function refreshPage(databaseId, pageId, clientId, chartType) {
+async function refreshPage(databaseId, pageId, clientId, chartType, plotType) {
 
     // 1 - Get the QuickChart link from getChart()
-    const quickChart = await getChart(databaseId, chartType);
+    const quickChart = await getChart(databaseId, chartType, plotType);
 
     // 2 - Swap links from QuickChart to Imgur
     const imgurUrl = await swapLinks(clientId, quickChart);
@@ -176,7 +180,7 @@ async function refreshPage(databaseId, pageId, clientId, chartType) {
 }
 
 // replaceCharts(pageId, ['https://i.imgur.com/XwU6DJt.png']);
-await refreshPage(databaseId, pageId, clientId, 'pie');
+await refreshPage(databaseId, pageId, clientId, 'pie', 'percentage');
 
 // export const handler = async (event) => {
 //     await refreshPage(databaseId, pageId, clientId, 'pie');
