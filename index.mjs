@@ -21,7 +21,7 @@ async function queryDatabase(databaseId) {
         });
         return response.results;
     } catch (error) {
-        console.log(error.body);
+        console.log('Query Database :: ', error.body);
     }
 }
 
@@ -34,13 +34,14 @@ async function getChildBlocks(pageId) {
         });
         return response.results;
     } catch (error) {
-        console.log(error.body);
+        console.log('Get Child Blocks ::', error.body);
     }
 }
 
 // This function will access the data from the given database, generate a chart with QuickChart,
 // and return the QuickChart URL containing the chart image 
-async function getChart(databaseId, chartType, plotType) {
+// GroupBy field should be the name of the select field
+async function getChart(databaseId, chartType, plotType, groupBy) {
 
     const data = await queryDatabase(databaseId)
         .then(async results => {
@@ -49,17 +50,17 @@ async function getChart(databaseId, chartType, plotType) {
             let total = 0;
             for (let i = 0; i < results.length; i++) {
                 const pageId = results[i].id;
-                const tagId = results[i].properties.Tags.id;
+                const groupByFieldId = results[i].properties[groupBy].id;
                 const amountId = results[i].properties.Amount.id;
                 try {
-                    const tagVal = await notion.pages.properties.retrieve({ page_id: pageId, property_id: tagId });
+                    const groupByFieldValue = await notion.pages.properties.retrieve({ page_id: pageId, property_id: groupByFieldId });
                     const amountVal = await notion.pages.properties.retrieve({ page_id: pageId, property_id: amountId });
-                    const tag = tagVal.select.name;
+                    const name = groupByFieldValue.select.name;
                     const amount = amountVal.number;
                     total += amount;
-                    tags[tag] = tag in tags ? tags[tag] + amount : amount;
+                    tags[name] = name in tags ? tags[name] + amount : amount;
                 } catch (error) {
-                    console.log(error.body);
+                    console.log('Get Chart :: ', error.body);
                 }
             }
 
@@ -167,10 +168,10 @@ async function replaceCharts(pageId, imgUrls) {
 }
 
 // The main driver of the program
-async function refreshPage(databaseId, pageId, clientId, chartType, plotType) {
+async function refreshPage(databaseId, pageId, clientId, chartType, plotType, groupBy) {
 
     // 1 - Get the QuickChart link from getChart()
-    const quickChart = await getChart(databaseId, chartType, plotType);
+    const quickChart = await getChart(databaseId, chartType, plotType, groupBy);
 
     // 2 - Swap links from QuickChart to Imgur
     const imgurUrl = await swapLinks(clientId, quickChart);
@@ -180,7 +181,7 @@ async function refreshPage(databaseId, pageId, clientId, chartType, plotType) {
 }
 
 // replaceCharts(pageId, ['https://i.imgur.com/XwU6DJt.png']);
-await refreshPage(databaseId, pageId, clientId, 'pie', 'percentage');
+await refreshPage(databaseId, pageId, clientId, 'pie', 'percentage', 'Type');
 
 // export const handler = async (event) => {
 //     await refreshPage(databaseId, pageId, clientId, 'pie');
