@@ -115,12 +115,15 @@ async function swapLinks(clientId, chartlink) {
 async function replaceCharts(pageId, imgUrls) {
     const results = await getChildBlocks(pageId);
     // Get locations and ID's for previous images
-    const prevImages = [];
+
     const allBlockIds = [];
     const indexLocations = [];
 
     // Reconstruct the children array + gather all ID's
-    const children = new Array(results.length).fill(0);
+    const hasImage = results.some(res => res.type === 'image');
+
+    // If image block is not available create, one. We will go for a better approach later
+    const children = new Array(hasImage ? results.length : results.length + 1).fill(0);
 
     // FIXME:: Make it more generic 
     for (let i = 0; i < results.length; i++) {
@@ -129,12 +132,15 @@ async function replaceCharts(pageId, imgUrls) {
         // If block is an image, store it in prevImage cache and save index
         // If not, store the block as-is into children array
         if (results[i].type == 'image') {
-            prevImages.push(results[i].id);
             indexLocations.push(i);
         } else {
             const dataType = results[i]['type'];
             children[i] = { [dataType]: results[i][dataType] };
         }
+    }
+
+    if (indexLocations.length === 0) {
+        indexLocations.push(results.length);
     }
 
     // Now add new images to children array
@@ -181,7 +187,7 @@ async function refreshPage(databaseId, pageId, clientId, chartType, plotType, gr
 }
 
 // replaceCharts(pageId, ['https://i.imgur.com/XwU6DJt.png']);
-await refreshPage(databaseId, pageId, clientId, 'pie', 'percentage', 'Type');
+await refreshPage(databaseId, pageId, clientId, 'pie', 'percentage', 'Tags');
 
 // export const handler = async (event) => {
 //     await refreshPage(databaseId, pageId, clientId, 'pie');
@@ -191,3 +197,12 @@ await refreshPage(databaseId, pageId, clientId, 'pie', 'percentage', 'Type');
 //     };
 //     return response;
 // };
+
+
+/**
+ * Returns column name
+ */
+async function getColumnNames() {
+    const response = await notion.databases.retrieve({ database_id: databaseId });
+    return Object.keys(response.properties);
+}
